@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rail Defect Analysis</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="js/railAnalysis.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .assessment {
+            font-size: 18px;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: inline-block;
+            color: white;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .stat-box {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            flex: 1;
+            min-width: 200px;
+            margin-right: 10px;
+        }
+        .chart {
+            width: 100%;
+            height: 500px;
+        }
+        .defect-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-gap: 15px;
+        }
+        .defect-chart {
+            height: 300px;
+        }
+        .controls {
+            padding: 15px;
+            background-color: #eee;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .controls button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .controls input, .controls select {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        @media (max-width: 768px) {
+            .defect-charts {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Rail Defect Analysis System</h1>
+
+    <div class="container controls">
+        <h2>Simulation Controls</h2>
+        <div>
+            <label for="length">Rail Length (cm):</label>
+            <input type="number" id="length" value="500" min="100" max="1000">
+        </div>
+        <div>
+            <label for="amplitude">Defect Amplitude:</label>
+            <input type="number" id="amplitude" value="0.3" min="0.1" max="1.0" step="0.1">
+        </div>
+        <div>
+            <label for="frequency">Defect Frequency:</label>
+            <input type="number" id="frequency" value="0.02" min="0.01" max="0.1" step="0.01">
+        </div>
+        <button onclick="generateRailData()">Generate New Simulation</button>
+    </div>
+
+    <div class="container">
+        <h2>Rail Overview</h2>
+        <p>Visualization of two parallel rails. Red shows the first rail, green shows the second.</p>
+        <div id="railsChart" class="chart"></div>
+    </div>
+
+    <div class="container">
+        <h2>Analysis of First Rail</h2>
+
+        <div class="stats">
+            <div class="stat-box">
+                <h3>Top Profile Defect Integral</h3>
+                <p id="integralTop1">Loading...</p>
+            </div>
+            <div class="stat-box">
+                <h3>Bottom Profile Defect Integral</h3>
+                <p id="integralBottom1">Loading...</p>
+            </div>
+            <div class="stat-box">
+                <h3>Total Defect Integral</h3>
+                <p id="totalIntegral1">Loading...</p>
+            </div>
+        </div>
+
+        <h3>Condition Assessment:</h3>
+        <div id="assessment1" class="assessment">Loading...</div>
+
+        <div class="defect-charts">
+            <div id="topProfile1" class="defect-chart"></div>
+            <div id="bottomProfile1" class="defect-chart"></div>
+            <div id="topDiff1" class="defect-chart"></div>
+            <div id="bottomDiff1" class="defect-chart"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Analysis of Second Rail</h2>
+
+        <div class="stats">
+            <div class="stat-box">
+                <h3>Top Profile Defect Integral</h3>
+                <p id="integralTop2">Loading...</p>
+            </div>
+            <div class="stat-box">
+                <h3>Bottom Profile Defect Integral</h3>
+                <p id="integralBottom2">Loading...</p>
+            </div>
+            <div class="stat-box">
+                <h3>Total Defect Integral</h3>
+                <p id="totalIntegral2">Loading...</p>
+            </div>
+        </div>
+
+        <h3>Condition Assessment:</h3>
+        <div id="assessment2" class="assessment">Loading...</div>
+
+        <div class="defect-charts">
+            <div id="topProfile2" class="defect-chart"></div>
+            <div id="bottomProfile2" class="defect-chart"></div>
+            <div id="topDiff2" class="defect-chart"></div>
+            <div id="bottomDiff2" class="defect-chart"></div>
+        </div>
+    </div>
+
+    <script>
+        // Generate data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            generateRailData();
+        });
+    </script>
+</body>
+</html>
