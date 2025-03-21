@@ -1,3 +1,11 @@
+// Server setup using Express.js
+const express = require('express');
+const app = express();
+const path = require('path');
+
+// Serve static files from the current directory
+app.use(express.static(__dirname));
+
 // Function to generate smooth noise
 function generateSmoothNoise(length, amplitude = 1.0, frequency = 0.1) {
   const x = Array.from({ length }, (_, i) => i);
@@ -16,36 +24,99 @@ function generateSmoothNoise(length, amplitude = 1.0, frequency = 0.1) {
   return noise;
 }
 
+
 // Generate ideal rail profile
 function generateIdealRailProfile(length = 500) {
   // Create base rail profile as a zero line
   return Array(length).fill(0);
 }
 
-// Generate defect rail profile
-function generateDefectRailProfile(length = 500, defectAmplitude = 0.5, defectFrequency = 0.05) {
-  // Start with ideal rail
-  const profile = generateIdealRailProfile(length);
+// Function to generate realistic rail profile
+function generateRealisticRailProfile(length = 500) {
+  // Create base rail profile with proper geometry
+  const profile = Array(length).fill(0);
   
-  // Add smooth defects
-  const defects = generateSmoothNoise(length, defectAmplitude, defectFrequency);
+  // Add very subtle long-wavelength variations to simulate natural rail bending
+  const longWave = generateSmoothNoise(length, 0.05, 0.001);
   
-  // Return profile with defects
-  return profile.map((val, i) => val + defects[i]);
+  // Add medium-wavelength variations for rail wear
+  const mediumWave = generateSmoothNoise(length, 0.02, 0.005);
+  
+  // Add short-wavelength variations for surface roughness
+  const shortWave = generateSmoothNoise(length, 0.01, 0.02);
+  
+  // Combine all variations
+  return profile.map((val, i) => val + longWave[i] + mediumWave[i] + shortWave[i]);
 }
 
-// Calculate defect integral - Simpson's integration replacement
-function calculateDefectIntegral(idealProfile, defectProfile) {
-  // Calculate absolute difference
-  const difference = idealProfile.map((val, i) => Math.abs(defectProfile[i] - val));
+// Function to create train car model
+function createTrainCar(x, y, scale = 1) {
+  const carWidth = 20 * scale;
+  const carHeight = 15 * scale;
+  const wheelRadius = 2 * scale;
   
-  // Simple trapezoid rule integration
-  let integral = 0;
-  for (let i = 1; i < difference.length; i++) {
-    integral += 0.5 * (difference[i-1] + difference[i]);
-  }
+  return {
+    x: x,
+    y: y,
+    width: carWidth,
+    height: carHeight,
+    wheelRadius: wheelRadius,
+    wheels: [
+      { x: x - carWidth/3, y: y + carHeight/2, radius: wheelRadius },
+      { x: x + carWidth/3, y: y + carHeight/2, radius: wheelRadius }
+    ]
+  };
+}
+
+// Function to update train car position
+function updateTrainCar(car, rail1Top, rail2Top, x, position) {
+  const index = Math.floor(position);
+  const nextIndex = Math.min(index + 1, rail1Top.length - 1);
+  const t = position - index;
   
-  return { integral, difference };
+  // Interpolate rail heights
+  const rail1Height = rail1Top[index] * (1 - t) + rail1Top[nextIndex] * t;
+  const rail2Height = rail2Top[index] * (1 - t) + rail2Top[nextIndex] * t;
+  
+  // Update car position
+  car.x = position;
+  car.y = (rail1Height + rail2Height) / 2 - car.height/2;
+  
+  // Update wheel positions
+  car.wheels[0].x = car.x - car.width/3;
+  car.wheels[1].x = car.x + car.width/3;
+  car.wheels[0].y = car.y + car.height/2;
+  car.wheels[1].y = car.y + car.height/2;
+  
+  return car;
+}
+
+// Function to create train car visualization data
+function createTrainCarData(car) {
+  return [
+    // Car body
+    {
+      x: [car.x - car.width/2, car.x + car.width/2, car.x + car.width/2, car.x - car.width/2],
+      y: [car.y, car.y, car.y + car.height, car.y + car.height],
+      type: 'scatter',
+      mode: 'lines+fill',
+      fill: 'toself',
+      fillcolor: 'rgba(100, 100, 100, 0.8)',
+      line: { color: 'black', width: 2 }
+    },
+    // Wheels
+    ...car.wheels.map(wheel => ({
+      x: wheel.x,
+      y: wheel.y,
+      type: 'scatter',
+      mode: 'markers',
+      marker: {
+        size: wheel.radius * 2,
+        color: 'black',
+        line: { color: 'white', width: 1 }
+      }
+    }))
+  ];
 }
 
 // Function to create rail visualization data for Plotly
@@ -198,14 +269,20 @@ function evaluateCondition(integral) {
   }
 }
 
-// Function to generate all rail data
-function generateRailData() {
+// Main route
+app.get('/', (req, res) => {
+  // Serve the Рельсы.HTML file
+  res.sendFile(path.join(__dirname,'Templates','Рельсы.HTML'));
+});
+
+// API route to get rail data
+app.get('/api/rail-data', (req, res) => {
   try {
-    // Get parameters from form
-    const length = parseInt(document.getElementById('length').value) || 500;
-    const amplitude = parseFloat(document.getElementById('amplitude').value) || 0.3;
-    const frequency = parseFloat(document.getElementById('frequency').value) || 0.02;
-    const railHeight = 3; // rail height in mm
+    // Parameters
+    const length = parseInt(req.query.length) || 500;
+    const railHeight = 3;
+    const amplitude = parseFloat(req.query.amplitude) || 0.3;
+    const frequency = parseFloat(req.query.frequency) || 0.02;
     const x = Array.from({ length }, (_, i) => i);
     
     // Generate ideal rail profiles
@@ -215,16 +292,20 @@ function generateRailData() {
     const idealTop2 = generateIdealRailProfile(length);
     const idealBottom2 = idealTop2.map(v => v - railHeight);
     
-    // Generate defect rail profiles
-    const defectTop1 = generateDefectRailProfile(length, amplitude, frequency);
+    // Generate realistic defect rail profiles
+    const defectTop1 = generateRealisticRailProfile(length);
     const defectBottomBase1 = defectTop1.map(v => v - railHeight);
-    const defectBottomDefects1 = generateDefectRailProfile(length, 0.2, 0.03);
-    const defectBottom1 = defectBottomBase1.map((v, i) => v + defectBottomDefects1[i]);
+    const defectBottomDefects1 = generateRealisticRailProfile(length);
+    const defectBottom1 = defectBottomBase1.map((v, i) => v + defectBottomDefects1[i] * 0.5);
     
-    const defectTop2 = generateDefectRailProfile(length, 0.4, 0.015);
+    const defectTop2 = generateRealisticRailProfile(length);
     const defectBottomBase2 = defectTop2.map(v => v - railHeight);
-    const defectBottomDefects2 = generateDefectRailProfile(length, 0.25, 0.025);
-    const defectBottom2 = defectBottomBase2.map((v, i) => v + defectBottomDefects2[i]);
+    const defectBottomDefects2 = generateRealisticRailProfile(length);
+    const defectBottom2 = defectBottomBase2.map((v, i) => v + defectBottomDefects2[i] * 0.5);
+    
+    // Create train car
+    const trainCar = createTrainCar(length/2, 0);
+    const trainCarData = createTrainCarData(trainCar);
     
     // Calculate defect integrals
     const { integral: integralTop1, difference: diffTop1 } = calculateDefectIntegral(idealTop1, defectTop1);
@@ -255,116 +336,24 @@ function generateRailData() {
     const evaluation1 = evaluateCondition(totalIntegral1);
     const evaluation2 = evaluateCondition(totalIntegral2);
     
-    // Update the UI with the data
-    // Display integral values
-    document.getElementById('integralTop1').textContent = integralTop1.toFixed(2) + ' mm²';
-    document.getElementById('integralBottom1').textContent = integralBottom1.toFixed(2) + ' mm²';
-    document.getElementById('totalIntegral1').textContent = totalIntegral1.toFixed(2) + ' mm²';
-    
-    document.getElementById('integralTop2').textContent = integralTop2.toFixed(2) + ' mm²';
-    document.getElementById('integralBottom2').textContent = integralBottom2.toFixed(2) + ' mm²';
-    document.getElementById('totalIntegral2').textContent = totalIntegral2.toFixed(2) + ' mm²';
-    
-    // Display assessments
-    const assessment1 = document.getElementById('assessment1');
-    assessment1.textContent = evaluation1.condition;
-    assessment1.style.backgroundColor = evaluation1.color;
-    
-    const assessment2 = document.getElementById('assessment2');
-    assessment2.textContent = evaluation2.condition;
-    assessment2.style.backgroundColor = evaluation2.color;
-    
-    // Plot rails overview
-    Plotly.newPlot('railsChart', railsData, {
-        title: 'Railway Rail Profiles',
-        xaxis: { title: 'Distance (cm)' },
-        yaxis: { title: 'Height (mm)' }
+    // Send data
+    res.json({
+      railsData,
+      defects1Data,
+      defects2Data,
+      trainCarData,
+      integralTop1,
+      integralBottom1,
+      totalIntegral1,
+      integralTop2,
+      integralBottom2,
+      totalIntegral2,
+      evaluation1,
+      evaluation2,
+      x
     });
-    
-    // Plot first rail analysis
-    // Top profile
-    Plotly.newPlot('topProfile1', defects1Data.topProfileData, {
-        title: 'Top Rail Profile',
-        xaxis: { title: 'Distance (cm)' },
-        yaxis: { 
-            title: 'Height (mm)',
-            range: [defects1Data.yMin, defects1Data.yMax]
-        }
-    });
-    
-    // Bottom profile
-    Plotly.newPlot('bottomProfile1', defects1Data.bottomProfileData, {
-        title: 'Bottom Rail Profile',
-        xaxis: { title: 'Distance (cm)' },
-        yaxis: { 
-            title: 'Height (mm)',
-            range: [defects1Data.yMin, defects1Data.yMax]
-        }
-    });
-    
-    // Top defects
-    Plotly.newPlot('topDiff1', defects1Data.topDiffData, {
-        title: `Top Profile Defects (Integral: ${integralTop1.toFixed(2)} mm²)`,
-        xaxis: { title: 'Distance (cm)' },
-        yaxis: { 
-            title: 'Defect (mm)',
-            range: [0, defects1Data.diffMax]
-        }
-    });
-    
-    // Bottom defects
-    Plotly.newPlot('bottomDiff1', defects1Data.bottomDiffData, {
-        title: `Bottom Profile Defects (Integral: ${integralBottom1.toFixed(2)} mm²)`,
-        xaxis: { title: 'Distance (cm)' },
-        yaxis: { 
-            title: 'Defect (mm)',
-            range: [0, defects1Data.diffMax]
-        }
-    });
-    
-    // Plot second rail analysis
-    // Top profile
-    Plotly.newPlot('topProfile2', defects2Data.topProfileData, {
-        title: 'Top Rail Profile',
-        xaxis: { title: 'Distance (cm)' },
-        yaxis: { 
-            title: 'Height (mm)',
-            range: [defects2Data.yMin, defects2Data.yMax]
-        }
-    });
-    
-    // Bottom profile
-    Plotly.newPlot('bottomProfile2', defects2Data.bottomProfileData, {
-        title: 'Bottom Rail Profile',
-        xaxis: { title: 'Distance (cm)' },
-        yaxis: { 
-            title: 'Height (mm)',
-            range: [defects2Data.yMin, defects2Data.yMax]
-        }
-    });
-    
-    // Top defects
-    Plotly.newPlot('topDiff2', defects2Data.topDiffData, {
-        title: `Top Profile Defects (Integral: ${integralTop2.toFixed(2)} mm²)`,
-        xaxis: { title: 'Distance (cm)' },
-        yaxis: { 
-            title: 'Defect (mm)',
-            range: [0, defects2Data.diffMax]
-        }
-    });
-    
-    // Bottom defects
-    Plotly.newPlot('bottomDiff2', defects2Data.bottomDiffData, {
-        title: `Bottom Profile Defects (Integral: ${integralBottom2.toFixed(2)} mm²)`,
-        xaxis: { title: 'Distance (cm)' },
-        yaxis: { 
-            title: 'Defect (mm)',
-            range: [0, defects2Data.diffMax]
-        }
-    });
-    
   } catch (error) {
     console.error('Error generating rail data:', error);
-    alert('Error generating rail data: ' + error.message);
+    res.status(500).json({ error: 'Internal Server Error' });
   }
-}
+});
