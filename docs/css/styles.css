@@ -1,0 +1,69 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f5f5f5;
+}
+
+h1, h2, h3 {
+    color: #333;
+}
+
+.container {
+    background-color: white;
+    padding: 20px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.assessment {
+    font-size: 18px;
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 5px;
+    margin: 10px 0;
+    display: inline-block;
+    color: white;
+}
+
+.stats {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.stat-box {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 10px 0;
+    flex: 1;
+    min-width: 200px;
+    margin-right: 10px;
+}
+
+.chart {
+    width: 100%;
+    height: 500px;
+}
+
+.defect-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 15px;
+}
+
+.defect-chart {
+    height: 300px;
+}
+
+@media (max-width: 768px) {
+    .defect-charts {
+        grid-template-columns: 1fr;
+    }
+}
+
+#railPlot {
+    width: 100%;
+    height: 600px;
+} 
