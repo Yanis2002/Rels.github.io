@@ -7,36 +7,120 @@ title: Rail Analysis System
 <head>
     <title>Анализ дефектов рельсов</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h2 {
+            color: #444;
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .stat-box {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            flex: 1;
+            min-width: 200px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #666;
+        }
+
+        .stat-box p {
+            margin: 0;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .assessment {
+            padding: 10px 20px;
+            border-radius: 4px;
+            display: inline-block;
+            color: white;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .defect-charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .defect-chart {
+            background-color: white;
+            padding: 10px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        #railPlot {
+            width: 100%;
+            height: 400px;
+        }
+    </style>
 </head>
 <body>
     <h1>Анализ дефектов рельсов</h1>
 
     <div class="container">
-        <h2>Rail Overview</h2>
-        <p>Visualization of two parallel rails. Red shows the first rail, green shows the second.</p>
+        <h2>Обзор рельсов</h2>
+        <p>Визуализация двух параллельных рельсов. Красным показан первый рельс, зеленым - второй.</p>
         <div id="railPlot"></div>
     </div>
 
     <div class="container">
-        <h2>Analysis of First Rail</h2>
+        <h2>Анализ первого рельса</h2>
         <div class="stats">
             <div class="stat-box">
-                <h3>Top Profile Defect Integral</h3>
-                <p id="integralTop1">Loading...</p>
+                <h3>Интеграл дефектов верхнего профиля</h3>
+                <p id="integralTop1">Загрузка...</p>
             </div>
             <div class="stat-box">
-                <h3>Bottom Profile Defect Integral</h3>
-                <p id="integralBottom1">Loading...</p>
+                <h3>Интеграл дефектов нижнего профиля</h3>
+                <p id="integralBottom1">Загрузка...</p>
             </div>
             <div class="stat-box">
-                <h3>Total Defect Integral</h3>
-                <p id="totalIntegral1">Loading...</p>
+                <h3>Общий интеграл дефектов</h3>
+                <p id="totalIntegral1">Загрузка...</p>
             </div>
         </div>
 
-        <h3>Condition Assessment:</h3>
-        <div id="assessment1" class="assessment">Loading...</div>
+        <h3>Оценка состояния:</h3>
+        <div id="assessment1" class="assessment">Загрузка...</div>
 
         <div class="defect-charts">
             <div id="topProfile1" class="defect-chart"></div>
@@ -47,24 +131,24 @@ title: Rail Analysis System
     </div>
 
     <div class="container">
-        <h2>Analysis of Second Rail</h2>
+        <h2>Анализ второго рельса</h2>
         <div class="stats">
             <div class="stat-box">
-                <h3>Top Profile Defect Integral</h3>
-                <p id="integralTop2">Loading...</p>
+                <h3>Интеграл дефектов верхнего профиля</h3>
+                <p id="integralTop2">Загрузка...</p>
             </div>
             <div class="stat-box">
-                <h3>Bottom Profile Defect Integral</h3>
-                <p id="integralBottom2">Loading...</p>
+                <h3>Интеграл дефектов нижнего профиля</h3>
+                <p id="integralBottom2">Загрузка...</p>
             </div>
             <div class="stat-box">
-                <h3>Total Defect Integral</h3>
-                <p id="totalIntegral2">Loading...</p>
+                <h3>Общий интеграл дефектов</h3>
+                <p id="totalIntegral2">Загрузка...</p>
             </div>
         </div>
 
-        <h3>Condition Assessment:</h3>
-        <div id="assessment2" class="assessment">Loading...</div>
+        <h3>Оценка состояния:</h3>
+        <div id="assessment2" class="assessment">Загрузка...</div>
 
         <div class="defect-charts">
             <div id="topProfile2" class="defect-chart"></div>
