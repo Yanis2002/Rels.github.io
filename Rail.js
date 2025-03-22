@@ -1,293 +1,531 @@
-// Import necessary libraries
-// We'll use plotly.js for plotting and numeric.js for numerical operations
-
-// Server setup (using Express.js instead of Flask)
+// Настройка сервера с использованием Express.js
 const express = require('express');
 const app = express();
 const path = require('path');
 
-// Serve static files
-app.use(express.static('public'));
+// Обслуживание статических файлов из текущей директории
+app.use(express.static(__dirname));
 
-// Function to generate smooth noise (like the Python version)
-function generateSmoothNoise(length, amplitude = 1.0, frequency = 0.1) {
-  const x = Array.from({ length }, (_, i) => i);
-  let noise = Array(length).fill(0);
+// Функция для генерации плавного шума
+function генерироватьПлавныйШум(длина, амплитуда = 1.0, частота = 0.1) {
+  const x = Array.from({ length: длина }, (_, i) => i);
+  let шум = Array(длина).fill(0);
 
-  // Combine multiple sinusoids with different frequencies
+  // Комбинирование нескольких синусоид с разными частотами
   for (let i = 3; i < 8; i++) {
-    const phase = Math.random();
-    const freq = frequency * (i / 5);
+    const фаза = Math.random();
+    const частотаШума = частота * (i / 5);
     
-    for (let j = 0; j < length; j++) {
-      noise[j] += (Math.random() * amplitude / i) * Math.sin(2 * Math.PI * freq * x[j] + phase);
+    for (let j = 0; j < длина; j++) {
+      шум[j] += (Math.random() * амплитуда / i) * Math.sin(2 * Math.PI * частотаШума * x[j] + фаза);
     }
   }
   
-  return noise;
+  return шум;
 }
 
-// Generate ideal rail profile
-function generateIdealRailProfile(length = 500) {
-  // Create base rail profile as a zero line
-  return Array(length).fill(0);
+// Генерация идеального профиля рельса
+function генерироватьИдеальныйПрофильРельса(длина = 500) {
+  // Создание базового профиля рельса как нулевой линии
+  return Array(длина).fill(0);
 }
 
-// Generate defect rail profile
-function generateDefectRailProfile(length = 500, defectAmplitude = 0.5, defectFrequency = 0.05) {
-  // Start with ideal rail
-  const profile = generateIdealRailProfile(length);
-  
-  // Add smooth defects
-  const defects = generateSmoothNoise(length, defectAmplitude, defectFrequency);
-  
-  // Return profile with defects
-  return profile.map((val, i) => val + defects[i]);
-}
-
-// Calculate defect integral - Simpson's integration replacement
-function calculateDefectIntegral(idealProfile, defectProfile) {
-  // Calculate absolute difference
-  const difference = idealProfile.map((val, i) => Math.abs(defectProfile[i] - val));
-  
-  // Simple trapezoid rule integration (as replacement for Simpson)
-  let integral = 0;
-  for (let i = 1; i < difference.length; i++) {
-    integral += 0.5 * (difference[i-1] + difference[i]);
+// Функция для генерации случайных впадин на рельсе
+function генерироватьВпадины(длина, количествоВпадин = 5) {
+  const впадины = [];
+  for (let i = 0; i < количествоВпадин; i++) {
+    const позиция = Math.floor(Math.random() * длина);
+    const глубина = -(Math.random() * 0.5 + 0.2); // глубина впадины от 0.2 до 0.7
+    const ширина = Math.floor(Math.random() * 10) + 5; // ширина впадины от 5 до 15
+    впадины.push({ позиция, глубина, ширина });
   }
-  
-  return { integral, difference };
+  return впадины;
 }
 
-// Function to create rail visualization data for Plotly
-function createRailsData(rail1Top, rail1Bottom, rail2Top, rail2Bottom, x) {
-  // Rail distance
-  const railDistance = 10;
+// Функция для создания данных маркеров впадин
+function создатьДанныеМаркеровВпадин(впадины, профиль) {
+  return {
+    x: впадины.map(в => в.позиция),
+    y: впадины.map(в => профиль[в.позиция]), // Теперь маркеры будут прямо на рельсе
+    type: 'scatter',
+    mode: 'markers',
+    name: 'Впадины',
+    marker: {
+      size: 12,
+      color: 'red',
+      symbol: 'circle',
+      line: { color: 'white', width: 2 }
+    }
+  };
+}
+
+// Функция для генерации случайных точек измерения между верхней и нижней частями рельса
+function генерироватьТочкиИзмерения(длина, количествоТочек = 5) {
+  const точки = [];
+  const минимальноеРасстояние = длина / (количествоТочек * 2); // Минимальное расстояние между точками
+  
+  while (точки.length < количествоТочек) {
+    const позиция = Math.floor(Math.random() * длина);
+    
+    // Проверяем, достаточно ли далеко эта точка от уже существующих
+    const достаточноДалеко = точки.every(т => Math.abs(т.позиция - позиция) >= минимальноеРасстояние);
+    
+    if (достаточноДалеко) {
+      точки.push({
+        позиция,
+        смещение: Math.random() // Случайное положение между верхней и нижней частями рельса
+      });
+    }
+  }
+  return точки;
+}
+
+// Функция для создания данных визуализации точек измерения
+function создатьДанныеТочекИзмерения(точки, верхнийПрофиль, нижнийПрофиль) {
+  return {
+    x: точки.map(т => т.позиция),
+    y: точки.map(т => {
+      const верх = верхнийПрофиль[т.позиция];
+      const низ = нижнийПрофиль[т.позиция];
+      return низ + (верх - низ) * т.смещение; // Интерполяция между верхом и низом
+    }),
+    type: 'scatter',
+    mode: 'markers',
+    name: 'Точки измерения',
+    marker: {
+      size: 12,
+      color: 'red',
+      symbol: 'circle',
+      line: { color: 'white', width: 2 }
+    }
+  };
+}
+
+// Функция для генерации реалистичного профиля рельса
+function генерироватьРеалистичныйПрофильРельса(длина = 500) {
+  // Создание базового профиля рельса с правильной геометрией
+  const профиль = Array(длина).fill(0);
+  
+  // Добавление очень тонких длинноволновых вариаций для имитации естественного изгиба рельса
+  const длиннаяВолна = генерироватьПлавныйШум(длина, 0.15, 0.001); // Увеличена амплитуда
+  
+  // Добавление средневолновых вариаций для износа рельса
+  const средняяВолна = генерироватьПлавныйШум(длина, 0.1, 0.005); // Увеличена амплитуда
+  
+  // Добавление коротковолновых вариаций для шероховатости поверхности
+  const короткаяВолна = генерироватьПлавныйШум(длина, 0.05, 0.02); // Увеличена амплитуда
+  
+  // Генерация случайных впадин
+  const впадины = генерироватьВпадины(длина);
+  
+  // Комбинирование всех вариаций и добавление впадин
+  return {
+    профиль: профиль.map((val, i) => {
+      let значение = val + длиннаяВолна[i] + средняяВолна[i] + короткаяВолна[i];
+      // Добавление впадин
+      впадины.forEach(впадина => {
+        const расстояние = Math.abs(i - впадина.позиция);
+        if (расстояние < впадина.ширина) {
+          const влияние = Math.cos((расстояние / впадина.ширина) * Math.PI) * 0.5 + 0.5;
+          значение += впадина.глубина * влияние;
+        }
+      });
+      return значение;
+    }),
+    впадины
+  };
+}
+
+// Функция для создания модели вагона
+function создатьВагон(x, y, масштаб = 1) {
+  const ширинаВагона = 60 * масштаб;
+  const высотаВагона = 30 * масштаб;
+  const радиусКолеса = 8 * масштаб;
+  const расстояниеМеждуРельсами = 10; // Добавляем константу для расстояния между рельсами
+  
+  return {
+    x: x,
+    y: y,
+    ширина: ширинаВагона,
+    высота: высотаВагона,
+    радиусКолеса: радиусКолеса,
+    колеса: [
+      // Левые колеса (для первого рельса)
+      { x: x - ширинаВагона/3, y: y, радиус: радиусКолеса },
+      // Правые колеса (для второго рельса)
+      { x: x + ширинаВагона/3, y: y + расстояниеМеждуРельсами, радиус: радиусКолеса }
+    ],
+    рессоры: [
+      { x1: x - ширинаВагона/3, x2: x - ширинаВагона/4, y: y + высотаВагона/4 },
+      { x1: x + ширинаВагона/4, x2: x + ширинаВагона/3, y: y + высотаВагона/4 }
+    ]
+  };
+}
+
+// Функция для обновления позиции вагона
+function обновитьПозициюВагона(вагон, рельс1Верх, рельс2Верх, x, позиция) {
+  const индекс = Math.floor(позиция);
+  const следующийИндекс = Math.min(индекс + 1, рельс1Верх.length - 1);
+  const t = позиция - индекс;
+  
+  // Интерполяция высоты рельсов
+  const высотаРельса1 = рельс1Верх[индекс];
+  const высотаРельса2 = рельс2Верх[индекс] + 10; // Добавляем смещение для второго рельса
+  
+  // Обновление позиции вагона
+  вагон.x = позиция;
+  вагон.y = высотаРельса1;
+  
+  // Обновление позиций колес
+  вагон.колеса[0].x = вагон.x - вагон.ширина/3;
+  вагон.колеса[0].y = высотаРельса1;
+  
+  вагон.колеса[1].x = вагон.x + вагон.ширина/3;
+  вагон.колеса[1].y = высотаРельса2;
+  
+  // Обновление позиций рессор
+  вагон.рессоры[0].x1 = вагон.x - вагон.ширина/3;
+  вагон.рессоры[0].x2 = вагон.x - вагон.ширина/4;
+  вагон.рессоры[0].y = вагон.y + вагон.высота/4;
+  
+  вагон.рессоры[1].x1 = вагон.x + вагон.ширина/4;
+  вагон.рессоры[1].x2 = вагон.x + вагон.ширина/3;
+  вагон.рессоры[1].y = вагон.y + вагон.высота/4;
+  
+  return вагон;
+}
+
+// Функция для создания данных визуализации вагона
+function создатьДанныеВизуализацииВагона(вагон) {
+  return [
+    // Корпус вагона
+    {
+      x: [вагон.x - вагон.ширина/2, вагон.x + вагон.ширина/2, вагон.x + вагон.ширина/2, вагон.x - вагон.ширина/2, вагон.x - вагон.ширина/2],
+      y: [вагон.y + вагон.высота/2, вагон.y + вагон.высота/2, вагон.y + вагон.высота*1.5, вагон.y + вагон.высота*1.5, вагон.y + вагон.высота/2],
+      type: 'scatter',
+      mode: 'lines',
+      name: 'Вагон',
+      fill: 'toself',
+      fillcolor: 'rgba(100, 100, 100, 0.8)',
+      line: { color: 'black', width: 3 },
+      showlegend: false
+    },
+    // Колеса
+    ...вагон.колеса.map(колесо => ({
+      x: [колесо.x],
+      y: [колесо.y],
+      type: 'scatter',
+      mode: 'markers',
+      marker: {
+        size: колесо.радиус * 4,
+        color: 'black',
+        symbol: 'circle',
+        line: { color: 'white', width: 2 }
+      },
+      showlegend: false
+    })),
+    // Рессоры
+    ...вагон.рессоры.map(рессора => ({
+      x: [рессора.x1, рессора.x2],
+      y: [рессора.y, рессора.y],
+      type: 'scatter',
+      mode: 'lines',
+      line: { color: 'black', width: 3, dash: 'dot' },
+      showlegend: false
+    }))
+  ];
+}
+
+// Функция для создания данных визуализации рельсов для Plotly
+function создатьДанныеВизуализацииРельсов(рельс1Верх, рельс1Низ, рельс2Верх, рельс2Низ, x, вагон) {
+  // Генерируем случайные точки измерения для обоих рельсов
+  const точкиРельс1 = генерироватьТочкиИзмерения(x.length);
+  const точкиРельс2 = генерироватьТочкиИзмерения(x.length);
+  
+  // Расстояние между рельсами
+  const расстояниеМеждуРельсами = 10;
   
   return [
-    // First rail top
+    // Верхняя часть первого рельса
     {
       x: x,
-      y: rail1Top,
+      y: рельс1Верх,
       type: 'scatter',
       mode: 'lines',
-      name: 'Rail 1 (top)',
-      line: { color: 'red', width: 2 }
+      name: 'Рельс 1 (верх)',
+      line: { color: 'red', width: 4 }
     },
-    // First rail bottom
+    // Нижняя часть первого рельса
     {
       x: x,
-      y: rail1Bottom,
+      y: рельс1Низ,
       type: 'scatter',
       mode: 'lines',
-      name: 'Rail 1 (bottom)',
-      line: { color: 'red', width: 2 },
+      name: 'Рельс 1 (низ)',
+      line: { color: 'red', width: 4 },
       fill: 'tonexty',
-      fillcolor: 'rgba(255, 0, 0, 0.3)'
+      fillcolor: 'rgba(255, 0, 0, 0.4)'
     },
-    // Second rail top
+    // Точки измерения первого рельса
+    создатьДанныеТочекИзмерения(точкиРельс1, рельс1Верх, рельс1Низ),
+    // Верхняя часть второго рельса
     {
       x: x,
-      y: rail2Top.map(v => v + railDistance),
+      y: рельс2Верх.map(v => v + расстояниеМеждуРельсами),
       type: 'scatter',
       mode: 'lines',
-      name: 'Rail 2 (top)',
-      line: { color: 'green', width: 2 }
+      name: 'Рельс 2 (верх)',
+      line: { color: 'green', width: 4 }
     },
-    // Second rail bottom
+    // Нижняя часть второго рельса
     {
       x: x,
-      y: rail2Bottom.map(v => v + railDistance),
+      y: рельс2Низ.map(v => v + расстояниеМеждуРельсами),
       type: 'scatter',
       mode: 'lines',
-      name: 'Rail 2 (bottom)',
-      line: { color: 'green', width: 2 },
+      name: 'Рельс 2 (низ)',
+      line: { color: 'green', width: 4 },
       fill: 'tonexty',
-      fillcolor: 'rgba(0, 255, 0, 0.3)'
-    }
+      fillcolor: 'rgba(0, 255, 0, 0.4)'
+    },
+    // Точки измерения второго рельса
+    {
+      x: точкиРельс2.map(т => т.позиция),
+      y: точкиРельс2.map(т => {
+        const верх = рельс2Верх[т.позиция] + расстояниеМеждуРельсами;
+        const низ = рельс2Низ[т.позиция] + расстояниеМеждуРельсами;
+        return низ + (верх - низ) * т.смещение;
+      }),
+      type: 'scatter',
+      mode: 'markers',
+      name: 'Точки измерения',
+      marker: {
+        size: 12,
+        color: 'red',
+        symbol: 'circle',
+        line: { color: 'white', width: 2 }
+      }
+    },
+    // Добавляем данные вагона
+    ...создатьДанныеВизуализацииВагона(вагон)
   ];
 }
 
-// Function to create defect analysis data for Plotly
-function createDefectsAnalysisData(idealTop, defectTop, idealBottom, defectBottom, x, diffTop, diffBottom, integralTop, integralBottom) {
-  // Find common Y-axis limits
-  const allValues = [...idealTop, ...defectTop, ...idealBottom, ...defectBottom];
-  const yMin = Math.min(...allValues) - 0.05;
-  const yMax = Math.max(...allValues) + 0.05;
+// Функция для оценки состояния рельса
+function оценитьСостояние(интеграл) {
+  if (интеграл < 20) {
+    return { состояние: "Отличное", цвет: "green" };
+  } else if (интеграл < 50) {
+    return { состояние: "Хорошее", цвет: "blue" };
+  } else if (интеграл < 100) {
+    return { состояние: "Требует внимания", цвет: "orange" };
+  } else {
+    return { состояние: "Требует замены", цвет: "red" };
+  }
+}
+
+// Функция для расчета интеграла дефектов
+function calculateDefectIntegral(идеальныйПрофиль, дефектныйПрофиль) {
+  // Расчет абсолютной разницы
+  const разница = идеальныйПрофиль.map((val, i) => Math.abs(дефектныйПрофиль[i] - val));
   
-  // Find common difference limits
-  const diffValues = [...diffTop, ...diffBottom];
-  const diffMax = Math.max(...diffValues) + 0.02;
+  // Простое интегрирование по правилу трапеций
+  let интеграл = 0;
+  for (let i = 1; i < разница.length; i++) {
+    интеграл += 0.5 * (разница[i-1] + разница[i]);
+  }
   
-  // Create data for top profile
-  const topProfileData = [
+  return { integral: интеграл, difference: разница };
+}
+
+// Функция для создания данных анализа дефектов
+function createDefectsAnalysisData(идеальныйВерх, дефектныйВерх, идеальныйНиз, дефектныйНиз, x, разницаВерх, разницаНиз, интегралВерх, интегралНиз) {
+  // Поиск общих пределов по оси Y
+  const всеЗначения = [...идеальныйВерх, ...дефектныйВерх, ...идеальныйНиз, ...дефектныйНиз];
+  const yMin = Math.min(...всеЗначения) - 0.05;
+  const yMax = Math.max(...всеЗначения) + 0.05;
+  
+  // Поиск общих пределов разницы
+  const значенияРазницы = [...разницаВерх, ...разницаНиз];
+  const diffMax = Math.max(...значенияРазницы) + 0.02;
+  
+  // Создание данных для верхнего профиля
+  const данныеВерхнегоПрофиля = [
     {
       x: x,
-      y: idealTop,
+      y: идеальныйВерх,
       type: 'scatter',
       mode: 'lines',
-      name: 'Ideal Profile',
+      name: 'Идеальный профиль',
       line: { color: 'blue', width: 1 }
     },
     {
       x: x,
-      y: defectTop,
+      y: дефектныйВерх,
       type: 'scatter',
       mode: 'lines',
-      name: 'Defect Profile',
+      name: 'Профиль с дефектами',
       line: { color: 'red', width: 1 }
     }
   ];
   
-  // Create data for bottom profile
-  const bottomProfileData = [
+  // Создание данных для нижнего профиля
+  const данныеНижнегоПрофиля = [
     {
       x: x,
-      y: idealBottom,
+      y: идеальныйНиз,
       type: 'scatter',
       mode: 'lines',
-      name: 'Ideal Profile',
+      name: 'Идеальный профиль',
       line: { color: 'blue', width: 1 }
     },
     {
       x: x,
-      y: defectBottom,
+      y: дефектныйНиз,
       type: 'scatter',
       mode: 'lines',
-      name: 'Defect Profile',
+      name: 'Профиль с дефектами',
       line: { color: 'red', width: 1 }
     }
   ];
   
-  // Create data for top profile differences
-  const topDiffData = [
+  // Создание данных для разницы верхнего профиля
+  const данныеРазницыВерхнего = [
     {
       x: x,
-      y: diffTop,
+      y: разницаВерх,
       type: 'scatter',
       mode: 'none',
-      name: 'Top Defects',
+      name: 'Дефекты верхней части',
       fill: 'tozeroy',
       fillcolor: 'rgba(255, 0, 0, 0.5)'
     }
   ];
   
-  // Create data for bottom profile differences
-  const bottomDiffData = [
+  // Создание данных для разницы нижнего профиля
+  const данныеРазницыНижнего = [
     {
       x: x,
-      y: diffBottom,
+      y: разницаНиз,
       type: 'scatter',
       mode: 'none',
-      name: 'Bottom Defects',
+      name: 'Дефекты нижней части',
       fill: 'tozeroy',
       fillcolor: 'rgba(255, 0, 0, 0.5)'
     }
   ];
   
   return {
-    topProfileData,
-    bottomProfileData,
-    topDiffData,
-    bottomDiffData,
+    topProfileData: данныеВерхнегоПрофиля,
+    bottomProfileData: данныеНижнегоПрофиля,
+    topDiffData: данныеРазницыВерхнего,
+    bottomDiffData: данныеРазницыНижнего,
     yMin,
     yMax,
     diffMax
   };
 }
 
-// Function to evaluate rail condition
-function evaluateCondition(integral) {
-  if (integral < 20) {
-    return { condition: "Excellent", color: "green" };
-  } else if (integral < 50) {
-    return { condition: "Good", color: "blue" };
-  } else if (integral < 100) {
-    return { condition: "Requires attention", color: "orange" };
-  } else {
-    return { condition: "Requires replacement", color: "red" };
-  }
-}
-
-// Main route
+// Основной маршрут
 app.get('/', (req, res) => {
-  // Generate HTML instead of using template engine
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  // Отправка файла Рельсы.HTML
+  res.sendFile(path.join(__dirname,'Templates','Рельсы.HTML'));
 });
 
-// API route to get rail data
+// API маршрут для получения данных о рельсах
 app.get('/api/rail-data', (req, res) => {
-  // Parameters
-  const length = 500; // length in cm
-  const railHeight = 3; // rail height in mm
-  const x = Array.from({ length }, (_, i) => i);
-  
-  // Generate ideal rail profiles
-  const idealTop1 = generateIdealRailProfile(length);
-  const idealBottom1 = idealTop1.map(v => v - railHeight);
-  
-  const idealTop2 = generateIdealRailProfile(length);
-  const idealBottom2 = idealTop2.map(v => v - railHeight);
-  
-  // Generate defect rail profiles
-  const defectTop1 = generateDefectRailProfile(length, 0.3, 0.02);
-  const defectBottomBase1 = defectTop1.map(v => v - railHeight);
-  const defectBottomDefects1 = generateDefectRailProfile(length, 0.2, 0.03);
-  const defectBottom1 = defectBottomBase1.map((v, i) => v + defectBottomDefects1[i]);
-  
-  const defectTop2 = generateDefectRailProfile(length, 0.4, 0.015);
-  const defectBottomBase2 = defectTop2.map(v => v - railHeight);
-  const defectBottomDefects2 = generateDefectRailProfile(length, 0.25, 0.025);
-  const defectBottom2 = defectBottomBase2.map((v, i) => v + defectBottomDefects2[i]);
-  
-  // Calculate defect integrals
-  const { integral: integralTop1, difference: diffTop1 } = calculateDefectIntegral(idealTop1, defectTop1);
-  const { integral: integralBottom1, difference: diffBottom1 } = calculateDefectIntegral(idealBottom1, defectBottom1);
-  
-  const { integral: integralTop2, difference: diffTop2 } = calculateDefectIntegral(idealTop2, defectTop2);
-  const { integral: integralBottom2, difference: diffBottom2 } = calculateDefectIntegral(idealBottom2, defectBottom2);
-  
-  // Create rails visualization data
-  const railsData = createRailsData(defectTop1, defectBottom1, defectTop2, defectBottom2, x);
-  
-  // Create defects analysis data
-  const defects1Data = createDefectsAnalysisData(
-    idealTop1, defectTop1, idealBottom1, defectBottom1,
-    x, diffTop1, diffBottom1, integralTop1, integralBottom1
-  );
-  
-  const defects2Data = createDefectsAnalysisData(
-    idealTop2, defectTop2, idealBottom2, defectBottom2,
-    x, diffTop2, diffBottom2, integralTop2, integralBottom2
-  );
-  
-  // Calculate total integrals
-  const totalIntegral1 = integralTop1 + integralBottom1;
-  const totalIntegral2 = integralTop2 + integralBottom2;
-  
-  // Evaluate conditions
-  const evaluation1 = evaluateCondition(totalIntegral1);
-  const evaluation2 = evaluateCondition(totalIntegral2);
-  
-  // Send data
-  res.json({
-    railsData,
-    defects1Data,
-    defects2Data,
-    integralTop1,
-    integralBottom1,
-    totalIntegral1,
-    integralTop2,
-    integralBottom2,
-    totalIntegral2,
-    evaluation1,
-    evaluation2,
-    x
-  });
+  try {
+    // Параметры
+    const длина = parseInt(req.query.length) || 500;
+    const высотаРельса = 3;
+    const x = Array.from({ length: длина }, (_, i) => i);
+    
+    // Генерация идеальных профилей рельсов
+    const идеальныйВерх1 = генерироватьИдеальныйПрофильРельса(длина);
+    const идеальныйНиз1 = идеальныйВерх1.map(v => v - высотаРельса);
+    
+    const идеальныйВерх2 = генерироватьИдеальныйПрофильРельса(длина);
+    const идеальныйНиз2 = идеальныйВерх2.map(v => v - высотаРельса);
+    
+    // Генерация реалистичных профилей рельсов с дефектами
+    const { профиль: дефектныйВерх1, впадины: впадины1 } = генерироватьРеалистичныйПрофильРельса(длина);
+    const дефектныйНизОснова1 = дефектныйВерх1.map(v => v - высотаРельса);
+    const { профиль: дефектныйНизВариации1 } = генерироватьРеалистичныйПрофильРельса(длина);
+    const дефектныйНиз1 = дефектныйНизОснова1.map((v, i) => v + дефектныйНизВариации1[i] * 0.5);
+    
+    const { профиль: дефектныйВерх2, впадины: впадины2 } = генерироватьРеалистичныйПрофильРельса(длина);
+    const дефектныйНизОснова2 = дефектныйВерх2.map(v => v - высотаРельса);
+    const { профиль: дефектныйНизВариации2 } = генерироватьРеалистичныйПрофильРельса(длина);
+    const дефектныйНиз2 = дефектныйНизОснова2.map((v, i) => v + дефектныйНизВариации2[i] * 0.5);
+    
+    // Создание вагона (позиция будет обновляться на клиенте)
+    const вагон = создатьВагон(0, 0, 1.5);
+    
+    // Создание данных визуализации рельсов (теперь включая вагон)
+    const данныеРельсов = создатьДанныеВизуализацииРельсов(
+      дефектныйВерх1, дефектныйНиз1, 
+      дефектныйВерх2, дефектныйНиз2, 
+      x,
+      вагон
+    );
+    
+    // Расчет интегралов дефектов
+    const { integral: интегралВерх1, difference: разницаВерх1 } = calculateDefectIntegral(идеальныйВерх1, дефектныйВерх1);
+    const { integral: интегралНиз1, difference: разницаНиз1 } = calculateDefectIntegral(идеальныйНиз1, дефектныйНиз1);
+    
+    const { integral: интегралВерх2, difference: разницаВерх2 } = calculateDefectIntegral(идеальныйВерх2, дефектныйВерх2);
+    const { integral: интегралНиз2, difference: разницаНиз2 } = calculateDefectIntegral(идеальныйНиз2, дефектныйНиз2);
+    
+    // Создание данных анализа дефектов
+    const данныеДефектов1 = createDefectsAnalysisData(
+      идеальныйВерх1, дефектныйВерх1, идеальныйНиз1, дефектныйНиз1,
+      x, разницаВерх1, разницаНиз1, интегралВерх1, интегралНиз1
+    );
+    
+    const данныеДефектов2 = createDefectsAnalysisData(
+      идеальныйВерх2, дефектныйВерх2, идеальныйНиз2, дефектныйНиз2,
+      x, разницаВерх2, разницаНиз2, интегралВерх2, интегралНиз2
+    );
+    
+    // Расчет общих интегралов
+    const общийИнтеграл1 = интегралВерх1 + интегралНиз1;
+    const общийИнтеграл2 = интегралВерх2 + интегралНиз2;
+    
+    // Оценка состояния
+    const оценка1 = оценитьСостояние(общийИнтеграл1);
+    const оценка2 = оценитьСостояние(общийИнтеграл2);
+    
+    // Добавляем профили рельсов в ответ для использования на клиенте
+    res.json({
+      railsData: данныеРельсов,
+      defects1Data: данныеДефектов1,
+      defects2Data: данныеДефектов2,
+      integralTop1: интегралВерх1,
+      integralBottom1: интегралНиз1,
+      totalIntegral1: общийИнтеграл1,
+      integralTop2: интегралВерх2,
+      integralBottom2: интегралНиз2,
+      totalIntegral2: общийИнтеграл2,
+      evaluation1: оценка1,
+      evaluation2: оценка2,
+      x: x,
+      rail1Top: дефектныйВерх1,
+      rail2Top: дефектныйВерх2
+    });
+  } catch (error) {
+    console.error('Ошибка при генерации данных рельсов:', error);
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
 });
 
-// Start server
+// Обработка 404
+app.use((req, res) => {
+  res.status(404).send('Не найдено');
+});
+
+// Запуск сервера
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Сервер запущен на порту ${PORT}`);
+  console.log(`http://localhost:${PORT}`);
 });

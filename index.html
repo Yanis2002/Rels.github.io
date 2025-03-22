@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Анализ дефектов рельсов</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <h1>Анализ дефектов рельсов</h1>
+
+    <div class="container">
+        <h2>Rail Overview</h2>
+        <p>Visualization of two parallel rails. Red shows the first rail, green shows the second.</p>
+        <div id="railPlot"></div>
+    </div>
+
+    <div class="container">
+        <h2>Analysis of First Rail</h2>
+        <div class="stats">
+            <div class="stat-box">
+                <h3>Top Profile Defect Integral</h3>
+                <p id="integralTop1">Loading...</p>
+            </div>
+            <div class="stat-box">
+                <h3>Bottom Profile Defect Integral</h3>
+                <p id="integralBottom1">Loading...</p>
+            </div>
+            <div class="stat-box">
+                <h3>Total Defect Integral</h3>
+                <p id="totalIntegral1">Loading...</p>
+            </div>
+        </div>
+
+        <h3>Condition Assessment:</h3>
+        <div id="assessment1" class="assessment">Loading...</div>
+
+        <div class="defect-charts">
+            <div id="topProfile1" class="defect-chart"></div>
+            <div id="bottomProfile1" class="defect-chart"></div>
+            <div id="topDiff1" class="defect-chart"></div>
+            <div id="bottomDiff1" class="defect-chart"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Analysis of Second Rail</h2>
+        <div class="stats">
+            <div class="stat-box">
+                <h3>Top Profile Defect Integral</h3>
+                <p id="integralTop2">Loading...</p>
+            </div>
+            <div class="stat-box">
+                <h3>Bottom Profile Defect Integral</h3>
+                <p id="integralBottom2">Loading...</p>
+            </div>
+            <div class="stat-box">
+                <h3>Total Defect Integral</h3>
+                <p id="totalIntegral2">Loading...</p>
+            </div>
+        </div>
+
+        <h3>Condition Assessment:</h3>
+        <div id="assessment2" class="assessment">Loading...</div>
+
+        <div class="defect-charts">
+            <div id="topProfile2" class="defect-chart"></div>
+            <div id="bottomProfile2" class="defect-chart"></div>
+            <div id="topDiff2" class="defect-chart"></div>
+            <div id="bottomDiff2" class="defect-chart"></div>
+        </div>
+    </div>
+
+    <script src="js/rail.js"></script>
+</body>
+</html> 
