@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Rail Defect Analysis</title>
+    <title>Анализ дефектов рельсов</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script src="js/railAnalysis.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -55,58 +54,24 @@
         .defect-chart {
             height: 300px;
         }
-        .controls {
-            padding: 15px;
-            background-color: #eee;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .controls button {
-            padding: 8px 15px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        .controls input, .controls select {
-            padding: 8px;
-            margin: 5px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-        }
         @media (max-width: 768px) {
             .defect-charts {
                 grid-template-columns: 1fr;
             }
         }
+        #railPlot {
+            width: 100%;
+            height: 600px;
+        }
     </style>
 </head>
 <body>
-    <h1>Rail Defect Analysis System</h1>
-
-    <div class="container controls">
-        <h2>Simulation Controls</h2>
-        <div>
-            <label for="length">Rail Length (cm):</label>
-            <input type="number" id="length" value="500" min="100" max="1000">
-        </div>
-        <div>
-            <label for="amplitude">Defect Amplitude:</label>
-            <input type="number" id="amplitude" value="0.3" min="0.1" max="1.0" step="0.1">
-        </div>
-        <div>
-            <label for="frequency">Defect Frequency:</label>
-            <input type="number" id="frequency" value="0.02" min="0.01" max="0.1" step="0.01">
-        </div>
-        <button onclick="generateRailData()">Generate New Simulation</button>
-    </div>
+    <h1>Анализ дефектов рельсов</h1>
 
     <div class="container">
         <h2>Rail Overview</h2>
         <p>Visualization of two parallel rails. Red shows the first rail, green shows the second.</p>
-        <div id="railsChart" class="chart"></div>
+        <div id="railPlot"></div>
     </div>
 
     <div class="container">
@@ -168,10 +133,255 @@
     </div>
 
     <script>
-        // Generate data on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            generateRailData();
-        });
+        let railData = null;
+        let rail1TopProfile = null;
+        let rail2TopProfile = null;
+        let plotLayout = null;
+        
+        // Функция для обновления позиции тележки
+        function updateTrainPosition(event) {
+            if (!railData || !plotLayout) return;
+            
+            const plot = document.getElementById('railPlot');
+            const rect = plot.getBoundingClientRect();
+            
+            // Получаем координаты курсора относительно графика
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // Проверяем, находится ли курсор над графиком
+            if (x < 0 || x > rect.width || y < 0 || y > rect.height) return;
+            
+            // Получаем текущие границы осей из layout
+            const xaxis = document.getElementById('railPlot')._fullLayout.xaxis;
+            const yaxis = document.getElementById('railPlot')._fullLayout.yaxis;
+            
+            // Преобразуем координаты экрана в координаты данных с учетом текущего масштаба
+            const plotX = xaxis.p2d(x);
+            
+            // Находим ближайший индекс в данных
+            const index = Math.floor((plotX / xaxis.range[1]) * rail1TopProfile.length);
+            if (index < 0 || index >= rail1TopProfile.length) return;
+            
+            // Получаем высоты рельсов в текущей позиции
+            const y1 = rail1TopProfile[index];
+            const y2 = rail2TopProfile[index] + 10;
+            
+            // Размеры тележки (вид сверху)
+            const wheelRadius = 0.4; // Радиус колес
+            const bodyWidth = 3; // Ширина тележки (между рельсами)
+            const bodyLength = 6; // Длина тележки
+            const wheelOffset = bodyLength / 3; // Расстояние между передними и задними колесами
+            
+            // Позиции колес
+            const wheels = [
+                // Левые колеса (на первом рельсе)
+                { x: plotX - wheelOffset/2, y: y1 }, // Переднее левое
+                { x: plotX + wheelOffset/2, y: y1 }, // Заднее левое
+                // Правые колеса (на втором рельсе)
+                { x: plotX - wheelOffset/2, y: y2 }, // Переднее правое
+                { x: plotX + wheelOffset/2, y: y2 }  // Заднее правое
+            ];
+            
+            // Обновляем данные тележки
+            const trainCarData = railData.slice(-3);
+            
+            // Обновляем колеса
+            trainCarData[1].x = wheels.map(w => w.x);
+            trainCarData[1].y = wheels.map(w => w.y);
+            trainCarData[1].mode = 'markers';
+            trainCarData[1].marker = {
+                size: wheelRadius * 15,
+                color: 'black',
+                symbol: 'circle'
+            };
+            
+            // Создаем точки для корпуса (вид сверху)
+            const bodyPoints = [
+                [plotX - wheelOffset/2 - wheelRadius, y1 + bodyWidth/4], // Передний левый угол
+                [plotX + wheelOffset/2 + wheelRadius, y1 + bodyWidth/4], // Задний левый угол
+                [plotX + wheelOffset/2 + wheelRadius, y2 - bodyWidth/4], // Задний правый угол
+                [plotX - wheelOffset/2 - wheelRadius, y2 - bodyWidth/4], // Передний правый угол
+                [plotX - wheelOffset/2 - wheelRadius, y1 + bodyWidth/4]  // Замыкаем контур
+            ];
+            
+            // Обновляем корпус
+            trainCarData[0].x = bodyPoints.map(p => p[0]);
+            trainCarData[0].y = bodyPoints.map(p => p[1]);
+            trainCarData[0].fill = 'toself';
+            trainCarData[0].fillcolor = 'rgba(50, 50, 50, 0.9)';
+            trainCarData[0].line = { color: 'black', width: 2 };
+            
+            // Обновляем оси (соединения между колесами)
+            trainCarData[2].x = [
+                // Передняя ось
+                wheels[0].x, wheels[2].x,
+                // Разрыв для разделения линий
+                null,
+                // Задняя ось
+                wheels[1].x, wheels[3].x
+            ];
+            trainCarData[2].y = [
+                // Передняя ось
+                wheels[0].y, wheels[2].y,
+                // Разрыв для разделения линий
+                null,
+                // Задняя ось
+                wheels[1].y, wheels[3].y
+            ];
+            trainCarData[2].mode = 'lines';
+            trainCarData[2].line = { color: 'black', width: 2 };
+            
+            // Обновляем график только для элементов тележки
+            Plotly.update('railPlot', {
+                x: trainCarData.map(d => d.x),
+                y: trainCarData.map(d => d.y)
+            }, {}, [railData.length - 3, railData.length - 2, railData.length - 1]);
+        }
+
+        // Загрузка данных и инициализация графика
+        fetch('/api/rail-data')
+            .then(response => response.json())
+            .then(data => {
+                railData = data.railsData;
+                rail1TopProfile = data.rail1Top;
+                rail2TopProfile = data.rail2Top;
+                
+                // Настройка графика
+                plotLayout = {
+                    title: 'Профили рельсов',
+                    xaxis: {
+                        title: 'Расстояние (см)',
+                        range: [0, 500],
+                        fixedrange: false // Разрешаем масштабирование по X
+                    },
+                    yaxis: {
+                        title: 'Высота (мм)',
+                        range: [-2, 12],
+                        fixedrange: false // Разрешаем масштабирование по Y
+                    },
+                    showlegend: true,
+                    hovermode: 'closest',
+                    dragmode: 'zoom', // Разрешаем зум
+                    margin: {
+                        l: 50,
+                        r: 50,
+                        t: 50,
+                        b: 50
+                    }
+                };
+                
+                // Отрисовка графика
+                Plotly.newPlot('railPlot', railData, plotLayout, {
+                    scrollZoom: true, // Разрешаем зум колесиком мыши
+                    displayModeBar: true, // Показываем панель инструментов
+                    responsive: true
+                });
+                
+                // Добавляем обработчик движения мыши
+                document.getElementById('railPlot').addEventListener('mousemove', updateTrainPosition);
+                
+                // Display integral values
+                document.getElementById('integralTop1').textContent = data.integralTop1.toFixed(2) + ' mm²';
+                document.getElementById('integralBottom1').textContent = data.integralBottom1.toFixed(2) + ' mm²';
+                document.getElementById('totalIntegral1').textContent = data.totalIntegral1.toFixed(2) + ' mm²';
+                
+                document.getElementById('integralTop2').textContent = data.integralTop2.toFixed(2) + ' mm²';
+                document.getElementById('integralBottom2').textContent = data.integralBottom2.toFixed(2) + ' mm²';
+                document.getElementById('totalIntegral2').textContent = data.totalIntegral2.toFixed(2) + ' mm²';
+                
+                // Display assessments
+                const assessment1 = document.getElementById('assessment1');
+                assessment1.textContent = data.evaluation1.condition;
+                assessment1.style.backgroundColor = data.evaluation1.color;
+                
+                const assessment2 = document.getElementById('assessment2');
+                assessment2.textContent = data.evaluation2.condition;
+                assessment2.style.backgroundColor = data.evaluation2.color;
+                
+                // Plot first rail analysis
+                // Top profile
+                Plotly.newPlot('topProfile1', data.defects1Data.topProfileData, {
+                    title: 'Top Rail Profile',
+                    xaxis: { title: 'Distance (cm)' },
+                    yaxis: { 
+                        title: 'Height (mm)',
+                        range: [data.defects1Data.yMin, data.defects1Data.yMax]
+                    }
+                });
+                
+                // Bottom profile
+                Plotly.newPlot('bottomProfile1', data.defects1Data.bottomProfileData, {
+                    title: 'Bottom Rail Profile',
+                    xaxis: { title: 'Distance (cm)' },
+                    yaxis: { 
+                        title: 'Height (mm)',
+                        range: [data.defects1Data.yMin, data.defects1Data.yMax]
+                    }
+                });
+                
+                // Top defects
+                Plotly.newPlot('topDiff1', data.defects1Data.topDiffData, {
+                    title: `Top Profile Defects (Integral: ${data.integralTop1.toFixed(2)} mm²)`,
+                    xaxis: { title: 'Distance (cm)' },
+                    yaxis: { 
+                        title: 'Defect (mm)',
+                        range: [0, data.defects1Data.diffMax]
+                    }
+                });
+                
+                // Bottom defects
+                Plotly.newPlot('bottomDiff1', data.defects1Data.bottomDiffData, {
+                    title: `Bottom Profile Defects (Integral: ${data.integralBottom1.toFixed(2)} mm²)`,
+                    xaxis: { title: 'Distance (cm)' },
+                    yaxis: { 
+                        title: 'Defect (mm)',
+                        range: [0, data.defects1Data.diffMax]
+                    }
+                });
+                
+                // Plot second rail analysis
+                // Top profile
+                Plotly.newPlot('topProfile2', data.defects2Data.topProfileData, {
+                    title: 'Top Rail Profile',
+                    xaxis: { title: 'Distance (cm)' },
+                    yaxis: { 
+                        title: 'Height (mm)',
+                        range: [data.defects2Data.yMin, data.defects2Data.yMax]
+                    }
+                });
+                
+                // Bottom profile
+                Plotly.newPlot('bottomProfile2', data.defects2Data.bottomProfileData, {
+                    title: 'Bottom Rail Profile',
+                    xaxis: { title: 'Distance (cm)' },
+                    yaxis: { 
+                        title: 'Height (mm)',
+                        range: [data.defects2Data.yMin, data.defects2Data.yMax]
+                    }
+                });
+                
+                // Top defects
+                Plotly.newPlot('topDiff2', data.defects2Data.topDiffData, {
+                    title: `Top Profile Defects (Integral: ${data.integralTop2.toFixed(2)} mm²)`,
+                    xaxis: { title: 'Distance (cm)' },
+                    yaxis: { 
+                        title: 'Defect (mm)',
+                        range: [0, data.defects2Data.diffMax]
+                    }
+                });
+                
+                // Bottom defects
+                Plotly.newPlot('bottomDiff2', data.defects2Data.bottomDiffData, {
+                    title: `Bottom Profile Defects (Integral: ${data.integralBottom2.toFixed(2)} mm²)`,
+                    xaxis: { title: 'Distance (cm)' },
+                    yaxis: { 
+                        title: 'Defect (mm)',
+                        range: [0, data.defects2Data.diffMax]
+                    }
+                });
+            })
+            .catch(error => console.error('Ошибка загрузки данных:', error));
     </script>
 </body>
 </html>
