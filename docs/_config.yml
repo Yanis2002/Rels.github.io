@@ -1,8 +1,8 @@
 title: Rail Analysis System
 description: Interactive rail defect analysis system
 theme: jekyll-theme-primer
-baseurl: "/Rels.github.io"
-url: "https://yanis2002.github.io"
+baseurl: ""
+url: "https://yanis2002.github.io/Rels.github.io"
 markdown: kramdown
 kramdown:
   input: GFM
