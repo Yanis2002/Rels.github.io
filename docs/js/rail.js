@@ -309,45 +309,92 @@ window.onload = function() {
     rail1TopProfile = data.rail1.top;
     rail2TopProfile = data.rail2.top;
     
-    const rail1Data = {
+    const расстояниеМеждуРельсами = 10;
+    
+    const rail1TopData = {
         x: data.x,
         y: data.rail1.top,
         type: 'scatter',
         mode: 'lines',
-        name: 'Rail 1',
-        line: { color: 'red', width: 2 }
+        name: 'Рельс 1 (верх)',
+        line: { color: 'red', width: 4 }
     };
     
-    const rail2Data = {
+    const rail1BottomData = {
         x: data.x,
-        y: data.rail2.top.map(v => v + 10),
+        y: data.rail1.bottom,
         type: 'scatter',
         mode: 'lines',
-        name: 'Rail 2',
-        line: { color: 'green', width: 2 }
+        name: 'Рельс 1 (низ)',
+        line: { color: 'red', width: 4 },
+        fill: 'tonexty',
+        fillcolor: 'rgba(255, 0, 0, 0.4)'
     };
     
-    const trainCar = {
+    const rail2TopData = {
+        x: data.x,
+        y: data.rail2.top.map(v => v + расстояниеМеждуРельсами),
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Рельс 2 (верх)',
+        line: { color: 'green', width: 4 }
+    };
+    
+    const rail2BottomData = {
+        x: data.x,
+        y: data.rail2.bottom.map(v => v + расстояниеМеждуРельсами),
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Рельс 2 (низ)',
+        line: { color: 'green', width: 4 },
+        fill: 'tonexty',
+        fillcolor: 'rgba(0, 255, 0, 0.4)'
+    };
+    
+    const trainCarBody = {
         x: [],
         y: [],
         type: 'scatter',
         mode: 'lines',
-        showlegend: false,
-        line: { color: 'black', width: 2 }
+        fill: 'toself',
+        fillcolor: 'rgba(50, 50, 50, 0.9)',
+        line: { color: 'black', width: 2 },
+        showlegend: false
     };
     
-    railData = [rail1Data, rail2Data, trainCar];
+    const trainCarWheels = {
+        x: [],
+        y: [],
+        type: 'scatter',
+        mode: 'markers',
+        marker: {
+            size: 6,
+            color: 'black'
+        },
+        showlegend: false
+    };
+    
+    const trainCarAxles = {
+        x: [],
+        y: [],
+        type: 'scatter',
+        mode: 'lines',
+        line: { color: 'black', width: 2 },
+        showlegend: false
+    };
+    
+    railData = [rail1TopData, rail1BottomData, rail2TopData, rail2BottomData, trainCarBody, trainCarWheels, trainCarAxles];
     
     plotLayout = {
-        title: 'Rail Profiles',
+        title: 'Профили рельсов',
         xaxis: {
-            title: 'Distance (cm)',
+            title: 'Расстояние (см)',
             range: [0, 500],
             fixedrange: false
         },
         yaxis: {
-            title: 'Height (mm)',
-            range: [-2, 12],
+            title: 'Высота (мм)',
+            range: [-5, 15],
             fixedrange: false
         },
         showlegend: true,
